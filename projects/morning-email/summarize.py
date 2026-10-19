@@ -142,7 +142,7 @@ def main():
             f"### User Preferences\n{prefs}\n\n"
             f"### Unread Emails (Last 12 Hours - {len(emails)} messages)\n"
             f"{json.dumps(emails, ensure_ascii=False)}\n\n"
-            "Write my one-paragraph morning summary of only what actually matters."
+            "Write my morning summary using clean sections and bullet points for VIP/Contact Summary, Urgent Matters, and Internships/Job Opportunities."
         )
 
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()
