@@ -1,0 +1,4 @@
+secrets/
+projects/morning-email/unread_batch.json
+.dist/
+__pycache__/

@@ -1,0 +1,31 @@
+name: Morning Email Brief
+
+on:
+  schedule:
+    # 02:00 UTC = 7:30 AM IST every day
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allows 1-tap manual runs from your phone or Telegram webhook
+
+jobs:
+  triage-and-summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch unread emails (Last 12h) and send Telegram summary
+        env:
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python scripts/fetch_emails.py
+          python projects/morning-email/summarize.py
