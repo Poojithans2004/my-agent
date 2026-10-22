@@ -45,7 +45,7 @@ def get_plain_body(msg):
     # Strip quoted reply history (lines starting with '>') and collapse whitespace
     lines = [line for line in body.splitlines() if not line.strip().startswith(">")]
     cleaned = re.sub(r"\s+", " ", " ".join(lines)).strip()
-    return cleaned[:800]
+    return cleaned[:1500]
 
 def main():
     load_env(ENV_FILE)
