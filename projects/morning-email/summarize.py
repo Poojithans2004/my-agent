@@ -139,10 +139,14 @@ def main():
         prefs = PREFS_FILE.read_text(encoding="utf-8") if PREFS_FILE.exists() else ""
 
         user_payload = (
-            f"### User Preferences\n{prefs}\n\n"
-            f"### Unread Emails (Last 12 Hours - {len(emails)} messages)\n"
-            f"{json.dumps(emails, ensure_ascii=False)}\n\n"
-            "Write my morning summary using clean sections and bullet points for VIP/Contact Summary, Urgent Matters, and Internships/Job Opportunities."
+            f"System Preferences:\n{prefs}\n\n"
+            f"Email Data ({len(emails)} messages):\n{json.dumps(emails, ensure_ascii=False)}\n\n"
+            "TASK: Based ONLY on the Email Data provided above, write my morning summary. "
+            "Use clean sections and bullet points for:\n"
+            "1. VIP / Contact Summary\n"
+            "2. Urgent Matters\n"
+            "3. Internships & Job Opportunities\n\n"
+            "Strict Rule: Do NOT repeat my preferences or rules. Only output the final summary. If a section has no relevant emails, just write 'None'."
         )
 
         api_key = os.environ.get("GEMINI_API_KEY", "").strip()
