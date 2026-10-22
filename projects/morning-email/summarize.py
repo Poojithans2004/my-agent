@@ -25,7 +25,7 @@ def load_env(env_path):
 def call_gemini(api_key, system_rules, user_payload):
     models = (
         "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
+        # "gemini-2.5-flash-lite",
         "gemini-2.0-flash",
         "gemini-flash-latest"
     )
