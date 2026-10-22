@@ -43,7 +43,7 @@ def call_gemini(api_key, system_rules, user_payload):
         }).encode("utf-8")
 
         # Try each model up to 2 times before falling back to the next model
-        for attempt in range(2):
+        for attempt in range(5):
             req = urllib.request.Request(
                 url,
                 data=payload,
