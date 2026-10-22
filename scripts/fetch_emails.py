@@ -94,11 +94,11 @@ def main():
                 continue
 
 
-            # 2. Deterministic bulk/automated filter (Zero AI needed)
-            precedence = msg.get("Precedence", "").lower()
-            auto_submitted = msg.get("Auto-Submitted", "").lower()
-            if precedence in ("bulk", "list", "junk") or (auto_submitted and auto_submitted != "no"):
-                continue
+            # # 2. Deterministic bulk/automated filter (Zero AI needed)
+            # precedence = msg.get("Precedence", "").lower()
+            # auto_submitted = msg.get("Auto-Submitted", "").lower()
+            # if precedence in ("bulk", "list", "junk") or (auto_submitted and auto_submitted != "no"):
+            #     continue
 
             batch.append({
                 "from": decode_str(msg.get("From")),
