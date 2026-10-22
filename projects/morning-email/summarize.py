@@ -53,7 +53,7 @@ def call_gemini(api_key, system_rules, user_payload):
                 }
             )
             try:
-                with urllib.request.urlopen(req, timeout=60) as resp:
+                with urllib.request.urlopen(req, timeout=120) as resp:
                     result = json.loads(resp.read().decode("utf-8"))
                     parts = result["candidates"][0]["content"]["parts"]
                     return "".join(
