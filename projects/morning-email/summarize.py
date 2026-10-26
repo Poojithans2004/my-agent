@@ -91,7 +91,7 @@ def send_telegram(text):
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = json.dumps({
         "chat_id": chat_id,
-        "text": f"☕ Morning Email Brief:\n\n{text}"
+        "text": f" 📧Email Brief:\n\n{text}"
     }).encode("utf-8")
 
     req = urllib.request.Request(
