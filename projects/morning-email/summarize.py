@@ -26,23 +26,22 @@ def load_env(env_path):
 
 def call_gemini(api_key, system_rules, user_payload):
     models = (
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-2.0-flash",
-    "gemini-flash-latest",
-)
-    last_error = ""
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash",
+        "gemini-flash-latest",
+    )
+    errors = []
 
     for model in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
-        # 1) Build the config per model
         gen_config = {"maxOutputTokens": 4096, "temperature": 0.2}
         if model.startswith("gemini-2.5"):
             gen_config["thinkingConfig"] = {"thinkingBudget": 0}
 
         payload = json.dumps({
-            "systemInstruction": {"parts": [{"text": system_rules}]},
+            "systemInstruction": {"parts": [{"text": system_rules or "You summarize emails."}]},
             "contents": [{"role": "user", "parts": [{"text": user_payload}]}],
             "generationConfig": gen_config,
         }).encode("utf-8")
@@ -51,119 +50,36 @@ def call_gemini(api_key, system_rules, user_payload):
             req = urllib.request.Request(
                 url,
                 data=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": api_key,
-                },
+                headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
             )
+            retry = False
             try:
                 with urllib.request.urlopen(req, timeout=180) as resp:
                     result = json.loads(resp.read().decode("utf-8"))
-
-                # 2) Defensive parsing
                 candidates = result.get("candidates") or []
                 parts = (candidates[0].get("content", {}).get("parts", [])) if candidates else []
                 text = "".join(p.get("text", "") for p in parts if not p.get("thought", False)).strip()
                 if text:
                     return text
-                last_error = f"empty response on {model}"
-                continue  # retry same model
-
+                errors.append(f"{model}: empty response")
+                retry = True
             except urllib.error.HTTPError as e:
-                err_body = e.read().decode("utf-8", errors="replace")
-                last_error = f"({e.code}) on {model}: {err_body}"
-                if e.code == 404:
-                    break  # model not found, go to next model
+                body = e.read().decode("utf-8", errors="replace")
+                errors.append(f"{model}: HTTP {e.code} {' '.join(body.split())[:150]}")
                 if e.code in (429, 500, 503):
-                    time.sleep(BACKOFF[attempt] + random.uniform(0, 3))
-                    continue
-                raise RuntimeError(f"Gemini API Error {last_error}") from e
+                    retry = True
+                else:
+                    break  # 400/403/404: retrying this model won't help
             except (urllib.error.URLError, TimeoutError) as e:
-                last_error = f"network error on {model}: {e}"
+                errors.append(f"{model}: network error {e}")
+                retry = True
+
+            if retry and attempt < 2:
                 time.sleep(BACKOFF[attempt] + random.uniform(0, 3))
-                continue
+            elif retry:
+                break  # attempts used up, next model
 
-    raise RuntimeError(f"All Gemini models failed. Last error: {last_error}")
-    models = (
-        "gemini-2.5-flash",
-        # "gemini-2.5-flash-lite",
-        "gemini-2.0-flash",
-        "gemini-flash-latest"
-    )
-    last_error = ""
-
-    for model in models:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-        payload = json.dumps({
-            "systemInstruction": {"parts": [{"text": system_rules}]},
-            "contents": [{"role": "user", "parts": [{"text": user_payload}]}],
-            "generationConfig": {
-                "maxOutputTokens": 2048,
-                "temperature": 0.2
-            }
-        }).encode("utf-8")
-
-        # Try each model up to 2 times before falling back to the next model
-        for attempt in range(5):
-            req = urllib.request.Request(
-                url,
-                data=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": api_key
-                }
-            )
-            try:
-                with urllib.request.urlopen(req, timeout=180) as resp:
-                    result = json.loads(resp.read().decode("utf-8"))
-                    parts = result["candidates"][0]["content"]["parts"]
-                    return "".join(
-                        p.get("text", "") for p in parts if not p.get("thought", False)
-                    ).strip()
-            except urllib.error.HTTPError as e:
-                err_body = e.read().decode("utf-8", errors="replace")
-                last_error = f"({e.code}) on {model}: {err_body}"
-                if e.code == 404:
-                    break  # Model not found, move to next model immediately
-                if e.code in (429, 500, 503):
-                    time.sleep(2)  # Wait 2 seconds and retry / fallback
-                    continue
-                raise RuntimeError(f"Gemini API Error {last_error}") from e
-
-    raise RuntimeError(f"All Gemini models busy. Last error: {last_error}")
-    for model in ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"):
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-        payload = json.dumps({
-            "systemInstruction": {"parts": [{"text": system_rules}]},
-            "contents": [{"role": "user", "parts": [{"text": user_payload}]}],
-            "generationConfig": {
-                "maxOutputTokens": 2048,
-                "temperature": 0.2
-            }
-        }).encode("utf-8")
-
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": api_key
-            }
-        )
-        try:
-            with urllib.request.urlopen(req) as resp:
-                result = json.loads(resp.read().decode("utf-8"))
-                parts = result["candidates"][0]["content"]["parts"]
-                return "".join(
-                    p.get("text", "") for p in parts if not p.get("thought", False)
-                ).strip()
-        except urllib.error.HTTPError as e:
-            err_body = e.read().decode("utf-8", errors="replace")
-            if e.code == 404:
-                continue
-            raise RuntimeError(f"Gemini API Error ({e.code}): {err_body}") from e
-
-    raise RuntimeError("Could not find an active Gemini Flash model for this API key.")
+    raise RuntimeError("All Gemini models failed:\n" + "\n".join(errors))
 
 def send_telegram(text):
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -238,8 +154,9 @@ def main():
                 f"- {clean(m['from'])}: {clean(m['subject'])}"
                 for m in important[:20]
             ]
+            reason = str(e).splitlines()[-1][:120]
             summary = (
-                "AI summary unavailable (Gemini overloaded). Raw list:\n"
+                f"AI summary unavailable ({reason}). Raw list:\n"
                 + "\n".join(lines or ["Nothing important found."])
             )
 
