@@ -60,7 +60,7 @@ def main():
     mail.login(user, password)
     mail.select("INBOX", readonly=True)  # readonly=True leaves messages marked unread
 
-    _, data = mail.search(None, f'(SINCE "{since_str}")')
+    _, data = mail.search(None, f'(UNSEEN SINCE "{since_str}")')
     msg_ids = data[0].split()
 
     # Cap at the 30 most recent emails to prevent timeouts

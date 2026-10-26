@@ -25,6 +25,64 @@ def load_env(env_path):
 def call_gemini(api_key, system_rules, user_payload):
     models = (
         "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-flash-latest",
+    )
+    last_error = ""
+
+    for model in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+        # 1) Build the config per model
+        gen_config = {"maxOutputTokens": 4096, "temperature": 0.2}
+        if model.startswith("gemini-2.5"):
+            gen_config["thinkingConfig"] = {"thinkingBudget": 0}
+
+        payload = json.dumps({
+            "systemInstruction": {"parts": [{"text": system_rules}]},
+            "contents": [{"role": "user", "parts": [{"text": user_payload}]}],
+            "generationConfig": gen_config,
+        }).encode("utf-8")
+
+        for attempt in range(3):
+            req = urllib.request.Request(
+                url,
+                data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": api_key,
+                },
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=180) as resp:
+                    result = json.loads(resp.read().decode("utf-8"))
+
+                # 2) Defensive parsing
+                candidates = result.get("candidates") or []
+                parts = (candidates[0].get("content", {}).get("parts", [])) if candidates else []
+                text = "".join(p.get("text", "") for p in parts if not p.get("thought", False)).strip()
+                if text:
+                    return text
+                last_error = f"empty response on {model}"
+                continue  # retry same model
+
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode("utf-8", errors="replace")
+                last_error = f"({e.code}) on {model}: {err_body}"
+                if e.code == 404:
+                    break  # model not found, go to next model
+                if e.code in (429, 500, 503):
+                    time.sleep(min(2 ** attempt, 30))
+                    continue
+                raise RuntimeError(f"Gemini API Error {last_error}") from e
+            except (urllib.error.URLError, TimeoutError) as e:
+                last_error = f"network error on {model}: {e}"
+                time.sleep(min(2 ** attempt, 30))
+                continue
+
+    raise RuntimeError(f"All Gemini models failed. Last error: {last_error}")
+    models = (
+        "gemini-2.5-flash",
         # "gemini-2.5-flash-lite",
         "gemini-2.0-flash",
         "gemini-flash-latest"
