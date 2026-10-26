@@ -107,6 +107,15 @@ NOISE = ("flipkart", "udemy", "adobe", "zapier", "substack", "glich","notificati
 def is_noise(m):
     sender = m.get("from", "").lower()
     return any(n in sender for n in NOISE)
+JOB_SENDERS = (
+    "linkedin.com", "indeed.com", "internshala.com", "naukri.com",
+    "glassdoor.com", "wellfound.com", "unstop.com", "foundit.in",
+    "shine.com", "instahyre.com", "cutshort.io", "hirist.com",
+)
+
+def is_job_platform(m):
+    sender = m.get("from", "").lower()
+    return any(j in sender for j in JOB_SENDERS)
 
 def clean(s):
     return " ".join((s or "").split())
@@ -118,7 +127,9 @@ def main():
         return
     emails = json.loads(BATCH_FILE.read_text(encoding="utf-8"))
     # emails = [m for m in emails if not is_noise(m)]
-
+    emails = [m for m in emails if not is_noise(m)]
+    for m in emails:
+        m["is_job_platform"] = is_job_platform(m)
     if not emails:
         summary = "Inbox clear—nothing urgent requires your attention this morning."
     else:
@@ -138,6 +149,9 @@ def main():
             "2. Internships & Job Opportunities\n\n"
             "Rules: Output plain text only, with no markdown and no asterisks. "
             "Each email must appear in only one section. "
+            "Any email with is_job_platform set to true goes under Internships & Job Opportunities, "
+            "unless it is an interview invite or assessment with a deadline within 48 hours, "
+            "in which case it goes under Urgent Matters. "
             "Put an email under Urgent Matters if it has a deadline within 48 hours, asks for an action, "
             "or comes from a sender or topic listed in my preferences. "
             "Format each item like this: Pavan Punith Kumar | Asks to confirm Talencia assessment steps | Due Oct 27\n"
