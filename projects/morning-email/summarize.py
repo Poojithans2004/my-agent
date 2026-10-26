@@ -116,7 +116,7 @@ def main():
         print("No batch file found. Run fetch_emails.py first.")
         return
     emails = json.loads(BATCH_FILE.read_text(encoding="utf-8"))
-    emails = [m for m in emails if not is_noise(m)]
+    # emails = [m for m in emails if not is_noise(m)]
 
     if not emails:
         summary = "Inbox clear—nothing urgent requires your attention this morning."
