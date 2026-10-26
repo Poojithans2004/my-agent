@@ -4,8 +4,10 @@ import os
 import urllib.request
 import urllib.error
 import time  
+import random
 from pathlib import Path
 
+BACKOFF = (5, 15, 45)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_FILE = BASE_DIR / "secrets" / ".env"
 BATCH_FILE = BASE_DIR / "projects" / "morning-email" / "unread_batch.json"
@@ -24,10 +26,11 @@ def load_env(env_path):
 
 def call_gemini(api_key, system_rules, user_payload):
     models = (
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-flash-latest",
-    )
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-flash-latest",
+)
     last_error = ""
 
     for model in models:
@@ -72,12 +75,12 @@ def call_gemini(api_key, system_rules, user_payload):
                 if e.code == 404:
                     break  # model not found, go to next model
                 if e.code in (429, 500, 503):
-                    time.sleep(min(2 ** attempt, 30))
+                    time.sleep(BACKOFF[attempt] + random.uniform(0, 3))
                     continue
                 raise RuntimeError(f"Gemini API Error {last_error}") from e
             except (urllib.error.URLError, TimeoutError) as e:
                 last_error = f"network error on {model}: {e}"
-                time.sleep(min(2 ** attempt, 30))
+                time.sleep(BACKOFF[attempt] + random.uniform(0, 3))
                 continue
 
     raise RuntimeError(f"All Gemini models failed. Last error: {last_error}")
@@ -211,7 +214,13 @@ def main():
         if not api_key:
             raise ValueError("Missing GEMINI_API_KEY in secrets/.env")
 
-        summary = call_gemini(api_key, system_rules, user_payload)
+        # Replace the old single call_gemini line with this try/except
+        try:
+            summary = call_gemini(api_key, system_rules, user_payload)
+        except RuntimeError as e:
+            print(f"Gemini failed: {e}")  # keeps the real error in the Actions log
+            lines = [f"- {m['from']}: {m['subject']}" for m in emails[:20]]
+            summary = "AI summary unavailable (Gemini overloaded). Raw list:\n" + "\n".join(lines)
 
     print(summary)
     send_telegram(summary)
