@@ -26,10 +26,10 @@ def load_env(env_path):
 
 def call_gemini(api_key, system_rules, user_payload):
     models = (
-        "gemini-2.5-flash",
         "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",  
         "gemini-2.0-flash",
-        "gemini-flash-latest",
+        
     )
     errors = []
 
@@ -101,7 +101,7 @@ def send_telegram(text):
     with urllib.request.urlopen(req) as resp:
         resp.read()
 
-NOISE = ("flipkart", "udemy", "adobe", "zapier", "substack", "glich")
+NOISE = ("flipkart", "udemy", "adobe", "zapier", "substack", "glich","notifications@github.com")
 
 def is_noise(m):
     sender = m.get("from", "").lower()
@@ -116,7 +116,7 @@ def main():
         print("No batch file found. Run fetch_emails.py first.")
         return
 
-    emails = json.loads(BATCH_FILE.read_text(encoding="utf-8"))
+    emails = [m for m in emails if not is_noise(m)]
 
     if not emails:
         summary = "Inbox clear—nothing urgent requires your attention this morning."
